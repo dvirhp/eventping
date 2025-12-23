@@ -1,0 +1,21 @@
+# Node / JS
+node_modules/
+dist/
+build/
+
+# Angular
+.angular/
+coverage/
+
+# Env
+.env
+.env.*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
