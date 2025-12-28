@@ -1,96 +1,97 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client/extension';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateEventDto } from './dto/create-event.dto';
-import { UpdateUserDto } from 'src/users/dto/update-user.dto';
-import { title } from 'process';
 import { UpdateEventDto } from './dto/update-event.dto';
 
 @Injectable()
 export class EventsService {
-    constructor( private readonly prisma: PrismaService ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-    async create (ownerId: string, dto: CreateEventDto) {
-        return this.prisma.event.create({
-            data: {
-                title: dto.title,
-                description: dto.description,
-                date: new Date(dto.date),
-                ownerId,
-            },
-        });
+  async create(ownerId: string, dto: CreateEventDto) {
+    return this.prisma.event.create({
+      data: {
+        title: dto.title,
+        description: dto.description,
+        date: new Date(dto.date),
+        ownerId,
+      },
+    });
+  }
+
+  async findAllForUser(ownerId: string) {
+    return this.prisma.event.findMany({
+      where: { ownerId },
+      orderBy: { date: 'asc' },
+    });
+  }
+
+  async findOneForUser(ownerId: string, eventId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event not found');
     }
 
-    async findAllForUser(ownerId: string) {
-        return this.prisma.event.findMany({
-            where: { ownerId },
-            orderBy: { date: 'asc' },
-        });
-
+    if (event.ownerId !== ownerId) {
+      throw new ForbiddenException('Access to resource denied');
     }
 
-    async findOneForUser(ownerId: string, eventId: string) {
-        const event = this.prisma.event.findUnique({
-            where: { id: eventId },
-        });
+    return event;
+  }
 
-        if(!event) {
-            throw new NotFoundException('Event not found');
-        }
-        if( event.userId !==ownerId ) {
-            throw new ForbiddenException('Access to resource denied');
-        }
+  async updateForUser(ownerId: string, eventId: string, dto: UpdateEventDto) {
+    await this.findOneForUser(ownerId, eventId);
 
-        return event;
-    }
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: {
+        title: dto.title,
+        description: dto.description,
+        date: dto.date ? new Date(dto.date) : undefined,
+      },
+    });
+  }
 
-    async updateForUser ( ownerId: string, eventId: string, dto: UpdateEventDto ) {
-        await this.findOneForUser(ownerId, eventId);
+  async removeForUser(ownerId: string, eventId: string) {
+    await this.findOneForUser(ownerId, eventId);
 
-        return this.prisma.event.update({
-            where: { id: eventId },
-            data: {
-                title: dto.title,
-                description: dto.description,
-                date: dto.date ? new Date(dto.date) : undefined,
-            },
-        });     
-    }
+    await this.prisma.event.delete({
+      where: { id: eventId },
+    });
 
-    async removeForUser ( ownerId: string, eventId: string ) {
-        await this.findOneForUser(ownerId, eventId);
+    return { deleted: true };
+  }
 
-        await this.prisma.event.delete({
-            where: { id: eventId },
-        });
+  async getStatsForEvent(ownerId: string, eventId: string) {
+    await this.findOneForUser(ownerId, eventId);
 
-        return { deleted: true };
-    }   
+    const totalGuests = await this.prisma.guest.count({
+      where: { eventId },
+    });
 
-    async getStatsForEvent ( ownerId: string, eventId: string ) {
-        await this.findOneForUser(ownerId, eventId);
+    const confirmed = await this.prisma.guest.count({
+      where: { eventId, status: 'CONFIRMED' },
+    });
 
-        const totalGuests = await this.prisma.guest.count({
-            where: { eventId },
-        });
+    const declined = await this.prisma.guest.count({
+      where: { eventId, status: 'DECLINED' },
+    });
 
-        const confirmed = await this.prisma.guest.count({
-            where: { eventId, status: 'CONFIRMED' },
-        });
+    const pending = await this.prisma.guest.count({
+      where: { eventId, status: 'PENDING' },
+    });
 
-        const declined = await this.prisma.guest.count({
-            where: { eventId, status: 'DECLINED' },
-        });
-
-        const pending = await this.prisma.guest.count({
-            where: { eventId, status: 'PENDING' },
-        });
-
-        return {
-            totalGuests,
-            confirmed,
-            declined,
-            pending
-        };
-    }
+    return {
+      totalGuests,
+      confirmed,
+      declined,
+      pending,
+    };
+  }
 }

@@ -6,90 +6,92 @@ import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
-    constructor(private readonly prisma: PrismaService) { }
-    private sanitize(user: any) {
-        const { passwordHash, ...sanitizedUser } = user;
-        return sanitizedUser;
+  constructor(private readonly prisma: PrismaService) {}
+
+  private sanitize(user: any) {
+    const { passwordHash, ...sanitizedUser } = user;
+    return sanitizedUser;
+  }
+
+  async create(createUserDto: CreateUserDto) {
+    const { name, email, password, phone } = createUserDto;
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
     }
 
-    async create(createUserDto: CreateUserDto) {
-        const {name, email, password, phone} = createUserDto;
+    const passwordHash = await bcrypt.hash(password, 10);
 
-        const existingUser = await this.prisma.user.findUnique({
-            where: { email },
-        });
+    const user = await this.prisma.user.create({
+      data: {
+        name,
+        email,
+        phone,
+        passwordHash,
+      },
+    });
 
-        if (existingUser) {
-            throw new ConflictException('User with this email already exists');
-        }
+    return this.sanitize(user);
+  }
 
-        const passwordHash = await bcrypt.hash(password, 10);
+  async findById(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
 
-        const user = await this.prisma.user.create({
-            data: {
-                name,
-                email,
-                phone,
-                passwordHash,
-        },
-        });
-
-        return this.sanitize(user);
+    if (!user) {
+      return null;
     }
 
-    async findById(id: number) {
-        const user = await this.prisma.user.findUnique({
-            where: { id },
-        });
-        if (!user) {
-            return null;
-        }
-        
-        return this.sanitize(user);
+    return this.sanitize(user);
+  }
+
+  async findByEmail(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return null;
     }
 
-    async findByEmail(email: string) {
-        const user = await this.prisma.user.findUnique({
-            where: { email },
-        });
+    return this.sanitize(user);
+  }
 
-        if (!user) {
-            return null;
-        }
+  async update(id: string, updateData: UpdateUserDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
 
-        return this.sanitize(user);
+    if (!user) {
+      return null;
     }
 
-    async update(id: number, updateData: UpdateUserDto ) {
-        const user = await this.prisma.user.findUnique({
-            where: { id },
-        });
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: updateData,
+    });
 
-        if (!user) {
-            return null;
-        }
+    return this.sanitize(updatedUser);
+  }
 
-        const updatedUser = await this.prisma.user.update({
-            where: { id },
-            data: updateData,
-        });
+  async remove(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
 
-        return this.sanitize(updatedUser);
+    if (!user) {
+      return null;
     }
 
-    async remove(id: number) {
-        const user = await this.prisma.user.findUnique({
-            where: { id },
-        });
+    await this.prisma.user.delete({
+      where: { id },
+    });
 
-        if (!user) {
-            return null;
-        }
-
-        await this.prisma.user.delete({
-            where: { id },
-        });
-
-        return this.sanitize(user);
-    }
-}   
+    return this.sanitize(user);
+  }
+}

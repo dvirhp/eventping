@@ -9,33 +9,34 @@ import { EventsService } from './events.service';
 export class EventsController {
     constructor(private readonly eventsService: EventsService) {}
 
+    @UseGuards(JwtAuthGuard)
     @Post()
     create(@Req() req, @Body() dto: CreateEventDto) {
-        return this.eventsService.create(req.user.id, dto);
+        return this.eventsService.create(req.user.userId, dto);
     }
 
     @Get()
     findAll(@Req() req) {
-        return this.eventsService.findAllForUser(req.user.id);
-    }
-
-    @Get(':id')
-    findOne(@Req() req, @Param('id') id: string) {
-        return this.eventsService.findOneForUser(req.user.id, id);
+        return this.eventsService.findAllForUser(req.user.userId);
     }
 
     @Get(':id/stats')
     getStats(@Req() req, @Param('id') id: string) {
-        return this.eventsService.getStatsForEvent(req.user.id, id);
+        return this.eventsService.getStatsForEvent(req.user.userId, id);
+    }
+
+    @Get(':id')
+    findOne(@Req() req, @Param('id') id: string) {
+        return this.eventsService.findOneForUser(req.user.userId, id);
     }
 
     @Patch(':id')
     update(@Req() req, @Param('id') id: string, @Body() dto: UpdateEventDto) {
-        return this.eventsService.updateForUser(req.user.id, id, dto);
+        return this.eventsService.updateForUser(req.user.userId, id, dto);
     }
 
     @Delete(':id')
     remove(@Req() req, @Param('id') id: string) {
-        return this.eventsService.removeForUser(req.user.id, id);
+        return this.eventsService.removeForUser(req.user.userId, id);
     }
 }
